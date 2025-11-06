@@ -3,7 +3,7 @@ import '../models/item.dart';
 import '../services/firestore_service.dart';
 
 class AddEditItemScreen extends StatefulWidget {
-  final Item? item; // Null means we're adding a new one; non-null means editing
+  final Item? item; // null means adding, not editing
 
   const AddEditItemScreen({super.key, this.item});
 
@@ -18,14 +18,15 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
   late TextEditingController _nameController;
   late TextEditingController _quantityController;
   late TextEditingController _priceController;
-  late TextEditingController _categoryController;
 
+  String _selectedCategory = 'Uncategorized';
   bool get _isEditMode => widget.item != null;
 
   @override
   void initState() {
     super.initState();
-    // Preload data if editing
+
+    // Pre-fill fields when editing, otherwise start blank
     _nameController = TextEditingController(text: widget.item?.name ?? '');
     _quantityController = TextEditingController(
       text: widget.item?.quantity.toString() ?? '',
@@ -33,9 +34,9 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     _priceController = TextEditingController(
       text: widget.item?.price.toString() ?? '',
     );
-    _categoryController = TextEditingController(
-      text: widget.item?.category ?? '',
-    );
+
+    // For category, fall back to Uncategorized if none is set
+    _selectedCategory = widget.item?.category ?? 'Uncategorized';
   }
 
   @override
@@ -43,40 +44,35 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
     _nameController.dispose();
     _quantityController.dispose();
     _priceController.dispose();
-    _categoryController.dispose();
     super.dispose();
   }
 
-  // Helper function to return to the first screen (home)
+  // Simple helper to return back to home screen
   void _goHome() {
-    print('Can pop? ${Navigator.of(context).canPop()}');
-
     if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop(); // Just pop back one screen
+      Navigator.of(context).pop();
     } else {
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
   }
 
+  // Handles both add and edit actions
   Future<void> _saveItem() async {
     if (!_formKey.currentState!.validate()) return;
 
     final name = _nameController.text.trim();
     final quantity = int.tryParse(_quantityController.text.trim()) ?? 0;
     final price = double.tryParse(_priceController.text.trim()) ?? 0.0;
-    final category = _categoryController.text.trim().isEmpty
-        ? 'Uncategorized'
-        : _categoryController.text.trim();
 
     if (_isEditMode) {
-      // Update existing item
       final updated = widget.item!.copyWith(
         name: name,
         quantity: quantity,
         price: price,
-        category: category,
+        category: _selectedCategory,
       );
       await _firestoreService.updateItem(updated);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Item updated successfully!'),
@@ -84,15 +80,15 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
         ),
       );
     } else {
-      // Add new item
       final newItem = Item(
         name: name,
         quantity: quantity,
         price: price,
-        category: category,
+        category: _selectedCategory,
         createdAt: DateTime.now(),
       );
       await _firestoreService.addItem(newItem);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Item added successfully!'),
@@ -101,12 +97,11 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       );
     }
 
-    // Wait briefly so the snackbar appears before navigating
-    await Future.delayed(const Duration(milliseconds: 600));
-
+    await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) _goHome();
   }
 
+  // Deletes the selected item
   Future<void> _deleteItem() async {
     if (widget.item?.id == null) return;
 
@@ -119,8 +114,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
       ),
     );
 
-    await Future.delayed(const Duration(milliseconds: 600));
-
+    await Future.delayed(const Duration(milliseconds: 500));
     if (mounted) _goHome();
   }
 
@@ -133,8 +127,8 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           if (_isEditMode)
             IconButton(
               icon: const Icon(Icons.delete),
-              onPressed: _deleteItem,
               tooltip: 'Delete this item',
+              onPressed: _deleteItem,
             ),
         ],
       ),
@@ -144,17 +138,19 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
           key: _formKey,
           child: ListView(
             children: [
+              // Item name field
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(
                   labelText: 'Item Name',
                   border: OutlineInputBorder(),
                 ),
-                validator: (val) => val == null || val.trim().isEmpty
-                    ? 'Please enter a name'
-                    : null,
+                validator: (val) =>
+                    val == null || val.trim().isEmpty ? 'Enter a name' : null,
               ),
               const SizedBox(height: 12),
+
+              // Quantity field
               TextFormField(
                 controller: _quantityController,
                 decoration: const InputDecoration(
@@ -164,7 +160,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                 keyboardType: TextInputType.number,
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Please enter quantity';
+                    return 'Enter quantity';
                   }
                   if (int.tryParse(val.trim()) == null) {
                     return 'Quantity must be a number';
@@ -173,6 +169,8 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                 },
               ),
               const SizedBox(height: 12),
+
+              // Price field
               TextFormField(
                 controller: _priceController,
                 decoration: const InputDecoration(
@@ -184,7 +182,7 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                 ),
                 validator: (val) {
                   if (val == null || val.trim().isEmpty) {
-                    return 'Please enter price';
+                    return 'Enter price';
                   }
                   if (double.tryParse(val.trim()) == null) {
                     return 'Price must be a number';
@@ -193,26 +191,52 @@ class _AddEditItemScreenState extends State<AddEditItemScreen> {
                 },
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: _categoryController,
+
+              // Category dropdown instead of text field
+              DropdownButtonFormField<String>(
+                value: _selectedCategory,
                 decoration: const InputDecoration(
-                  labelText: 'Category (optional)',
+                  labelText: 'Category',
                   border: OutlineInputBorder(),
                 ),
+                items: const [
+                  DropdownMenuItem(
+                    value: 'Uncategorized',
+                    child: Text('Uncategorized'),
+                  ),
+                  DropdownMenuItem(value: 'Food', child: Text('Food')),
+                  DropdownMenuItem(
+                    value: 'Electronics',
+                    child: Text('Electronics'),
+                  ),
+                  DropdownMenuItem(value: 'Clothing', child: Text('Clothing')),
+                  DropdownMenuItem(value: 'Other', child: Text('Other')),
+                ],
+                onChanged: (val) {
+                  if (val != null) {
+                    setState(() => _selectedCategory = val);
+                  }
+                },
               ),
+
               const SizedBox(height: 18),
+
+              // Save button
               ElevatedButton.icon(
                 onPressed: _saveItem,
                 icon: const Icon(Icons.save),
                 label: Text(_isEditMode ? 'Save Changes' : 'Add Item'),
               ),
+
               if (_isEditMode) ...[
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _deleteItem,
                   icon: const Icon(Icons.delete),
                   label: const Text('Delete'),
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.redAccent,
+                  ),
                 ),
               ],
             ],

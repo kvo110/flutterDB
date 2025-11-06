@@ -4,11 +4,18 @@ import '../services/firestore_service.dart';
 import 'add_edit_item_screen.dart';
 import 'inventory_dashboard_screen.dart';
 
-// Displays all inventory items with live updates from Firestore
+// This is the main screen that lists all items in your Firestore inventory.
 class InventoryHomePage extends StatefulWidget {
   final String title;
+  final VoidCallback onToggleTheme;
+  final ThemeMode themeMode; // <-- this was missing before
 
-  const InventoryHomePage({super.key, required this.title});
+  const InventoryHomePage({
+    super.key,
+    required this.title,
+    required this.onToggleTheme,
+    required this.themeMode,
+  });
 
   @override
   State<InventoryHomePage> createState() => _InventoryHomePageState();
@@ -26,6 +33,17 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         title: Text(widget.title),
         centerTitle: true,
         actions: [
+          // Light/Dark mode toggle icon
+          IconButton(
+            icon: Icon(
+              widget.themeMode == ThemeMode.dark
+                  ? Icons.dark_mode
+                  : Icons.light_mode,
+            ),
+            tooltip: 'Toggle Theme',
+            onPressed: widget.onToggleTheme,
+          ),
+          // Dashboard shortcut button
           IconButton(
             icon: const Icon(Icons.dashboard),
             tooltip: 'Dashboard',
@@ -38,9 +56,11 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           ),
         ],
       ),
+
+      // --- MAIN BODY ---
       body: Column(
         children: [
-          // search field
+          // Search field for filtering items by name
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -54,7 +74,8 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
               },
             ),
           ),
-          // category filter
+
+          // Dropdown for category filtering
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
             child: DropdownButtonFormField<String>(
@@ -78,18 +99,25 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             ),
           ),
           const SizedBox(height: 6),
+
+          // StreamBuilder to automatically refresh items from Firestore
           Expanded(
             child: StreamBuilder<List<Item>>(
               stream: _firestoreService.getItemsStream(),
               builder: (context, snapshot) {
+                // Loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+
+                // Error handling
                 if (snapshot.hasError) {
                   return const Center(child: Text('Error loading data.'));
                 }
 
                 final items = snapshot.data ?? [];
+
+                // Apply filters for search and category
                 final filtered = items.where((item) {
                   final matchesSearch = item.name.toLowerCase().contains(
                     _searchQuery,
@@ -101,12 +129,14 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
                   return matchesSearch && matchesCategory;
                 }).toList();
 
+                // Handle empty results
                 if (filtered.isEmpty) {
                   return const Center(
                     child: Text('No items found. Try adding one!'),
                   );
                 }
 
+                // Display filtered list of items
                 return ListView.builder(
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
@@ -117,6 +147,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
                         'Qty: ${item.quantity} • \$${item.price.toStringAsFixed(2)} • ${item.category}',
                       ),
                       onTap: () {
+                        // Go to Edit screen when an item is tapped
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -132,6 +163,8 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           ),
         ],
       ),
+
+      // Floating button for adding new items
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(

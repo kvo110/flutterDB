@@ -9,16 +9,56 @@ void main() async {
   runApp(const InventoryApp());
 }
 
-class InventoryApp extends StatelessWidget {
+// Wrap MaterialApp inside a StatefulWidget to handle theme changes
+class InventoryApp extends StatefulWidget {
   const InventoryApp({super.key});
+
+  @override
+  State<InventoryApp> createState() => _InventoryAppState();
+}
+
+class _InventoryAppState extends State<InventoryApp> {
+  ThemeMode _themeMode = ThemeMode.system;
+
+  void _toggleTheme() {
+    setState(() {
+      if (_themeMode == ThemeMode.light) {
+        _themeMode = ThemeMode.dark;
+      } else {
+        _themeMode = ThemeMode.light;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Inventory Management App',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const InventoryHomePage(title: 'Inventory Home Page'),
+      themeMode: _themeMode,
+      theme: ThemeData(
+        brightness: Brightness.light,
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blue,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.blue,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        useMaterial3: true,
+        colorSchemeSeed: Colors.blueGrey,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black87,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      home: InventoryHomePage(
+        title: 'Inventory Home Page',
+        onToggleTheme: _toggleTheme,
+        themeMode: _themeMode,
+      ),
     );
   }
 }
