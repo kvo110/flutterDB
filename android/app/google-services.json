@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "704868357629",
+    "project_id": "flut-db-kenny",
+    "storage_bucket": "flut-db-kenny.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:704868357629:android:5a04ab0c85900dadf63594",
+        "android_client_info": {
+          "package_name": "com.example.flutdb"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDW1SkfGF88hsZ5h3JGUxomxjftSUntZo4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
