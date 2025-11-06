@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// Basic data model for an inventory item
+// Data model for an inventory item
 class Item {
   final String? id;
   final String name;
@@ -18,7 +18,7 @@ class Item {
     required this.createdAt,
   });
 
-  // Convert an Item into a map for Firestore
+  // Convert to map for Firestore
   Map<String, dynamic> toMap() {
     return {
       'name': name,
@@ -29,7 +29,7 @@ class Item {
     };
   }
 
-  // Create an Item from a Firestore document
+  // Create from Firestore document
   factory Item.fromMap(String id, Map<String, dynamic> map) {
     return Item(
       id: id,
@@ -41,7 +41,7 @@ class Item {
     );
   }
 
-  // Copy method for editing
+  // For editing
   Item copyWith({
     String? id,
     String? name,

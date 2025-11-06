@@ -2,37 +2,31 @@ import 'package:flutter/material.dart';
 import '../models/item.dart';
 import '../services/firestore_service.dart';
 
-// This screen gives a quick overview of the inventory.
-// It displays summary stats like total items, total value,
-// average price, out-of-stock count, and a list of low-stock items.
 class InventoryDashboardScreen extends StatelessWidget {
-  final FirestoreService _firestoreService = FirestoreService();
-
-  InventoryDashboardScreen({super.key});
+  const InventoryDashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final FirestoreService firestoreService = FirestoreService();
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Inventory Dashboard'),
         centerTitle: true,
       ),
       body: StreamBuilder<List<Item>>(
-        stream: _firestoreService.getItemsStream(),
+        stream: firestoreService.getItemsStream(),
         builder: (context, snapshot) {
-          // loading state
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
 
-          // error state
           if (snapshot.hasError) {
             return const Center(child: Text('Error loading dashboard data.'));
           }
 
           final items = snapshot.data ?? [];
 
-          // basic metrics
           final totalItems = items.length;
           final totalValue = items.fold<double>(
             0.0,
@@ -49,14 +43,12 @@ class InventoryDashboardScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // main header
                 const Text(
                   'Overview',
                   style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
 
-                // grid of summary cards
                 GridView.count(
                   crossAxisCount: 2,
                   shrinkWrap: true,
@@ -95,28 +87,27 @@ class InventoryDashboardScreen extends StatelessWidget {
                 const SizedBox(height: 20),
                 const Divider(),
 
-                // list of low stock items
                 const Text(
-                  'Low Stock Items (Less than 5)',
+                  'Low Stock Items (less than 5)',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
 
                 if (lowStock == 0)
-                  const Text('All good! No low stock items right now.')
+                  const Text('All good. No low stock items right now.')
                 else
                   Column(
                     children: items
                         .where((item) => item.quantity > 0 && item.quantity < 5)
                         .map(
                           (item) => ListTile(
-                            title: Text(item.name),
-                            subtitle: Text(
-                              'Qty: ${item.quantity} • \$${item.price.toStringAsFixed(2)}',
-                            ),
                             leading: const Icon(
                               Icons.inventory,
                               color: Colors.orange,
+                            ),
+                            title: Text(item.name),
+                            subtitle: Text(
+                              'Qty: ${item.quantity} • \$${item.price.toStringAsFixed(2)}',
                             ),
                           ),
                         )
@@ -130,7 +121,6 @@ class InventoryDashboardScreen extends StatelessWidget {
     );
   }
 
-  // helper widget for displaying metric cards
   Widget _buildMetricCard({
     required String title,
     required String value,

@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import '../models/item.dart';
+import '../models/category.dart';
 import '../services/firestore_service.dart';
 import 'add_edit_item_screen.dart';
 import 'inventory_dashboard_screen.dart';
 
-// This is the main screen that lists all items in your Firestore inventory.
+// Displays all inventory items in real-time
 class InventoryHomePage extends StatefulWidget {
   final String title;
   final VoidCallback onToggleTheme;
-  final ThemeMode themeMode; // <-- this was missing before
+  final ThemeMode themeMode;
 
   const InventoryHomePage({
     super.key,
@@ -23,6 +24,7 @@ class InventoryHomePage extends StatefulWidget {
 
 class _InventoryHomePageState extends State<InventoryHomePage> {
   final FirestoreService _firestoreService = FirestoreService();
+
   String _searchQuery = '';
   String _selectedCategory = 'All';
 
@@ -33,7 +35,7 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
         title: Text(widget.title),
         centerTitle: true,
         actions: [
-          // Light/Dark mode toggle icon
+          // Theme toggle (light/dark)
           IconButton(
             icon: Icon(
               widget.themeMode == ThemeMode.dark
@@ -43,24 +45,24 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
             tooltip: 'Toggle Theme',
             onPressed: widget.onToggleTheme,
           ),
-          // Dashboard shortcut button
+          // Dashboard shortcut
           IconButton(
             icon: const Icon(Icons.dashboard),
             tooltip: 'Dashboard',
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => InventoryDashboardScreen()),
+                MaterialPageRoute(
+                  builder: (_) => const InventoryDashboardScreen(),
+                ),
               );
             },
           ),
         ],
       ),
-
-      // --- MAIN BODY ---
       body: Column(
         children: [
-          // Search field for filtering items by name
+          // Search bar
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: TextField(
@@ -69,55 +71,60 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
                 hintText: 'Search by item name...',
                 border: OutlineInputBorder(),
               ),
-              onChanged: (value) {
-                setState(() => _searchQuery = value.toLowerCase());
-              },
+              onChanged: (value) =>
+                  setState(() => _searchQuery = value.toLowerCase()),
             ),
           ),
 
-          // Dropdown for category filtering
+          // Category filter (live Firestore stream)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: DropdownButtonFormField<String>(
-              value: _selectedCategory,
-              items: const [
-                DropdownMenuItem(value: 'All', child: Text('All Categories')),
-                DropdownMenuItem(value: 'Food', child: Text('Food')),
-                DropdownMenuItem(
-                  value: 'Electronics',
-                  child: Text('Electronics'),
-                ),
-                DropdownMenuItem(value: 'Clothing', child: Text('Clothing')),
-              ],
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedCategory = val);
+            child: StreamBuilder<List<Category>>(
+              stream: _firestoreService.getCategoriesStream(),
+              builder: (context, snapshot) {
+                final categories = snapshot.data ?? [];
+                final dropdownItems = [
+                  const DropdownMenuItem(
+                    value: 'All',
+                    child: Text('All Categories'),
+                  ),
+                  ...categories.map(
+                    (cat) => DropdownMenuItem(
+                      value: cat.name,
+                      child: Text(cat.name),
+                    ),
+                  ),
+                ];
+
+                return DropdownButtonFormField<String>(
+                  value: _selectedCategory,
+                  items: dropdownItems,
+                  onChanged: (val) =>
+                      setState(() => _selectedCategory = val ?? 'All'),
+                  decoration: const InputDecoration(
+                    border: OutlineInputBorder(),
+                    labelText: 'Filter by category',
+                  ),
+                );
               },
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
-                labelText: 'Filter by category',
-              ),
             ),
           ),
+
           const SizedBox(height: 6),
 
-          // StreamBuilder to automatically refresh items from Firestore
+          // Item list
           Expanded(
             child: StreamBuilder<List<Item>>(
               stream: _firestoreService.getItemsStream(),
               builder: (context, snapshot) {
-                // Loading state
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
-                // Error handling
                 if (snapshot.hasError) {
                   return const Center(child: Text('Error loading data.'));
                 }
 
                 final items = snapshot.data ?? [];
-
-                // Apply filters for search and category
                 final filtered = items.where((item) {
                   final matchesSearch = item.name.toLowerCase().contains(
                     _searchQuery,
@@ -129,14 +136,10 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
                   return matchesSearch && matchesCategory;
                 }).toList();
 
-                // Handle empty results
                 if (filtered.isEmpty) {
-                  return const Center(
-                    child: Text('No items found. Try adding one!'),
-                  );
+                  return const Center(child: Text('No items found.'));
                 }
 
-                // Display filtered list of items
                 return ListView.builder(
                   itemCount: filtered.length,
                   itemBuilder: (context, index) {
@@ -147,7 +150,6 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
                         'Qty: ${item.quantity} • \$${item.price.toStringAsFixed(2)} • ${item.category}',
                       ),
                       onTap: () {
-                        // Go to Edit screen when an item is tapped
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -163,15 +165,11 @@ class _InventoryHomePageState extends State<InventoryHomePage> {
           ),
         ],
       ),
-
-      // Floating button for adding new items
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const AddEditItemScreen()),
-          );
-        },
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddEditItemScreen()),
+        ),
         child: const Icon(Icons.add),
       ),
     );
